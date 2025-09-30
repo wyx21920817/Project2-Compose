@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   jenkins:                            # Jenkins service
-    image: jenkins/jenkins:lts-jdk11
+    image: jenkins/jenkins:lts-jdk17
     container_name: jenkins
     user: root                        # Requires root to call Docker
     networks:
