@@ -1,43 +1,46 @@
-version: '3.9'
+version: '3.9'   # Docker Compose file version
 
 services:
-  dind:                               # Docker-in-Docker service
+  dind:   # Docker-in-Docker service, allows Jenkins to run Docker commands inside container
     image: docker:dind
     container_name: dind
-    privileged: true                  # It must enable privileged mode to run Docker
+    privileged: true                      # Required to run Docker daemon inside container
     networks:
       - jenkins
     environment:
-      DOCKER_TLS_CERTDIR: /certs      # Docker TLS Certificate Directory
+      DOCKER_TLS_CERTDIR: /certs          # Enable TLS certificate directory
     volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
-      - jenkins-data:/var/jenkins_home # Jenkins volumes
-    restart: unless-stopped
+      - docker-certs-ca:/certs/ca         # Store CA certificates
+      - docker-certs-client:/certs/client # Store client certificates
+      - jenkins-data:/var/jenkins_home    # Persist Jenkins data across restarts
+    restart: unless-stopped               # Auto restart policy
 
-  jenkins:                            # Jenkins service
-    image: jenkins/jenkins:lts-jdk17
+  jenkins:  # Jenkins main service
+    image: jenkins/jenkins:lts-jdk17      # Use LTS with JDK 17 to avoid Java 11 EOL issues
     container_name: jenkins
-    user: root                        # Requires root to call Docker
+    user: root                            # Run as root to access Docker socket/CLI
     networks:
       - jenkins
     environment:
-      DOCKER_HOST: "tcp://docker:2376"  # Let Jenkins execute Docker through dind
-      DOCKER_CERT_PATH: /certs/client
-      DOCKER_TLS_VERIFY: 1
+      DOCKER_HOST: "tcp://docker:2376"    # Point Jenkins to Docker daemon running in dind
+      DOCKER_CERT_PATH: /certs/client     # Path to client certificates
+      DOCKER_TLS_VERIFY: 1                # Enable TLS verification
     ports:
-      - "8080:8080"                   # Jenkins Web interface
-      - "50000:50000"                 # Jenkins Agent port
+      - "8080:8080"                       # Jenkins Web UI
+      - "50000:50000"                     # Jenkins Agent connection port
     volumes:
       - docker-certs-client:/certs/client:ro
-      - jenkins-data:/var/jenkins_home
-      - /usr/bin/docker:/usr/bin/docker  # Install the host Docker CLI
+      - jenkins-data:/var/jenkins_home    # Persist Jenkins configuration and data
+      - /usr/bin/docker:/usr/bin/docker   # Map host Docker CLI into container
     restart: unless-stopped
 
+# Named volumes for persistence
 volumes:
   docker-certs-ca:
   docker-certs-client:
   jenkins-data:
 
+# Dedicated network for Jenkins and DinD containers
 networks:
   jenkins:
+
