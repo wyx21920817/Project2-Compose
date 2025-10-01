@@ -1,8 +1,6 @@
-version: '3.9'   # Docker Compose file version
-
 services:
   dind:   # Docker-in-Docker service, allows Jenkins to run Docker commands inside container
-    image: docker:dind
+    image: docker:20.10-dind
     container_name: dind
     privileged: true                      # Required to run Docker daemon inside container
     networks:
@@ -12,17 +10,17 @@ services:
     volumes:
       - docker-certs-ca:/certs/ca         # Store CA certificates
       - docker-certs-client:/certs/client # Store client certificates
-      - jenkins-data:/var/jenkins_home    # Persist Jenkins data across restarts
+      - dind-storage:/var/lib/docker      # Docker layer cache for builds
     restart: unless-stopped               # Auto restart policy
 
   jenkins:  # Jenkins main service
     image: jenkins/jenkins:lts-jdk17      # Use LTS with JDK 17 to avoid Java 11 EOL issues
     container_name: jenkins
-    user: root                            # Run as root to access Docker socket/CLI
+    user: root                            # Run as root to access Docker CLI
     networks:
       - jenkins
     environment:
-      DOCKER_HOST: "tcp://docker:2376"    # Point Jenkins to Docker daemon running in dind
+      DOCKER_HOST: "tcp://dind:2376"      # Point Jenkins to Docker daemon in DinD
       DOCKER_CERT_PATH: /certs/client     # Path to client certificates
       DOCKER_TLS_VERIFY: 1                # Enable TLS verification
     ports:
@@ -31,7 +29,7 @@ services:
     volumes:
       - docker-certs-client:/certs/client:ro
       - jenkins-data:/var/jenkins_home    # Persist Jenkins configuration and data
-      - /usr/bin/docker:/usr/bin/docker   # Map host Docker CLI into container
+      - /usr/bin/docker:/usr/bin/docker   # Mount the host docker CLI
     restart: unless-stopped
 
 # Named volumes for persistence
@@ -39,6 +37,7 @@ volumes:
   docker-certs-ca:
   docker-certs-client:
   jenkins-data:
+  dind-storage:
 
 # Dedicated network for Jenkins and DinD containers
 networks:
