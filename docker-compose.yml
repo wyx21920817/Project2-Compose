@@ -1,13 +1,14 @@
+version: "3.9"
+
 services:
   dind:
     image: docker:20.10-dind
     container_name: dind
-    hostname: docker
+    hostname: docker                  # matches DOCKER_HOST= tcp://docker:2376
     privileged: true
-    networks:
-      - jenkins
     environment:
       DOCKER_TLS_CERTDIR: /certs
+    networks: [jenkins]
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -18,12 +19,11 @@ services:
     image: jenkins/jenkins:lts-jdk17
     container_name: jenkins
     user: root
-    networks:
-      - jenkins
     environment:
-      DOCKER_HOST: "tcp://docker:2376"
+      DOCKER_HOST: tcp://docker:2376
       DOCKER_CERT_PATH: /certs/client
-      DOCKER_TLS_VERIFY: 1
+      DOCKER_TLS_VERIFY: "1"
+    networks: [jenkins]
     ports:
       - "8080:8080"
       - "50000:50000"
