@@ -1,47 +1,51 @@
 services:
-  dind:   # Docker-in-Docker service, allows Jenkins to run Docker commands inside container
+  dind:
     image: docker:20.10-dind
     container_name: dind
-    hostname: docker
-    privileged: true                      # Required to run Docker daemon inside container
+    privileged: true
     networks:
-      - jenkins
+      jenkins:
+        aliases:            
+          - docker
     environment:
-      DOCKER_TLS_CERTDIR: /certs          # Enable TLS certificate directory
+      DOCKER_TLS_CERTDIR: /certs
     volumes:
-      - docker-certs-ca:/certs/ca         # Store CA certificates
-      - docker-certs-client:/certs/client # Store client certificates
-      - dind-storage:/var/lib/docker      # Docker layer cache for builds
-    restart: unless-stopped               # Auto restart policy
-
-  jenkins:  # Jenkins main service
-    image: jenkins/jenkins:lts-jdk17      # Use LTS with JDK 17 to avoid Java 11 EOL issues
-    container_name: jenkins
-    user: root                            # Run as root to access Docker CLI
-    networks:
-      - jenkins
-    environment:
-      DOCKER_HOST: "tcp://docker:2376"      # Point Jenkins to Docker daemon in DinD
-      DOCKER_CERT_PATH: /certs/client     # Path to client certificates
-      DOCKER_TLS_VERIFY: 1                # Enable TLS verification
-    ports:
-      - "8080:8080"                       # Jenkins Web UI
-      - "50000:50000"                     # Jenkins Agent connection port
-    volumes:
-      - docker-certs-client:/certs/client:ro
-      - jenkins-data:/var/jenkins_home    # Persist Jenkins configuration and data
-      - /usr/bin/docker:/usr/bin/docker   # Mount the host docker CLI
-      - /var/run/docker.sock:/var/run/docker.sock   # Mount docker socket
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+      - dind-storage:/var/lib/docker
+      - jenkins-workspace:/workspace      # Shared "Workspace Volume" with Jenkins
     restart: unless-stopped
 
-# Named volumes for persistence
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    user: root
+    networks:
+      - jenkins
+    environment:
+      DOCKER_HOST: "tcp://docker:2376"     # Point to DinD (alias docker)
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: 1
+      # Put Jenkins workspace/build directory into shared volume
+      JAVA_OPTS: >
+        -Djenkins.model.Jenkins.workspacesDir=/workspace/workspace
+        -Djenkins.model.Jenkins.buildsDir=/workspace/builds
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - docker-certs-client:/certs/client:ro
+      - jenkins-data:/var/jenkins_home
+      - jenkins-workspace:/workspace       # Mount to the same path as DinD
+    restart: unless-stopped
+
 volumes:
   docker-certs-ca:
   docker-certs-client:
   jenkins-data:
   dind-storage:
+  jenkins-workspace:      # Shared workspace volume
 
-# Dedicated network for Jenkins and DinD containers
 networks:
   jenkins:
 
