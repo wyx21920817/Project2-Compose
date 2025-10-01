@@ -2,18 +2,16 @@ services:
   dind:
     image: docker:20.10-dind
     container_name: dind
+    hostname: docker
     privileged: true
     networks:
-      jenkins:
-        aliases:            
-          - docker
+      - jenkins
     environment:
       DOCKER_TLS_CERTDIR: /certs
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
       - dind-storage:/var/lib/docker
-      - jenkins-workspace:/workspace      # Shared "Workspace Volume" with Jenkins
     restart: unless-stopped
 
   jenkins:
@@ -23,20 +21,15 @@ services:
     networks:
       - jenkins
     environment:
-      DOCKER_HOST: "tcp://docker:2376"     # Point to DinD (alias docker)
+      DOCKER_HOST: "tcp://docker:2376"
       DOCKER_CERT_PATH: /certs/client
       DOCKER_TLS_VERIFY: 1
-      # Put Jenkins workspace/build directory into shared volume
-      JAVA_OPTS: >
-        -Djenkins.model.Jenkins.workspacesDir=/workspace/workspace
-        -Djenkins.model.Jenkins.buildsDir=/workspace/builds
     ports:
       - "8080:8080"
       - "50000:50000"
     volumes:
       - docker-certs-client:/certs/client:ro
       - jenkins-data:/var/jenkins_home
-      - jenkins-workspace:/workspace       # Mount to the same path as DinD
     restart: unless-stopped
 
 volumes:
@@ -44,7 +37,6 @@ volumes:
   docker-certs-client:
   jenkins-data:
   dind-storage:
-  jenkins-workspace:      # Shared workspace volume
 
 networks:
   jenkins:
