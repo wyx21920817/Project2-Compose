@@ -2,6 +2,7 @@ services:
   dind:   # Docker-in-Docker service, allows Jenkins to run Docker commands inside container
     image: docker:20.10-dind
     container_name: dind
+    hostname: docker
     privileged: true                      # Required to run Docker daemon inside container
     networks:
       - jenkins
@@ -20,7 +21,7 @@ services:
     networks:
       - jenkins
     environment:
-      DOCKER_HOST: "tcp://dind:2376"      # Point Jenkins to Docker daemon in DinD
+      DOCKER_HOST: "tcp://docker:2376"      # Point Jenkins to Docker daemon in DinD
       DOCKER_CERT_PATH: /certs/client     # Path to client certificates
       DOCKER_TLS_VERIFY: 1                # Enable TLS verification
     ports:
